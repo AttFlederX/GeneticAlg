@@ -1,12 +1,12 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using GeneticAlg.Extensions;
 
 namespace GeneticAlg
 {
-    public class GeneticAlgorithm
+    public class MultivarGeneticAlgorithm
     {
         private static Random _rand = new Random();
 
@@ -15,16 +15,21 @@ namespace GeneticAlg
         /// <summary>
         /// Left bound of the search interval
         /// </summary>
-        private double _a;
+        private double[] _a;
         /// <summary>
         /// Right bound of the search interval
         /// </summary>
-        private double _b;
+        private double[] _b;
 
         /// <summary>
         /// Function to minimize
         /// </summary>
-        private Func<double, double> _f;
+        private Func<double[], double> _f;
+
+        /// <summary>
+        /// Number of variables in function
+        /// </summary>
+        private int _varNum;
 
         /// <summary>
         /// Precision in significant digits
@@ -36,9 +41,13 @@ namespace GeneticAlg
         #region Algorithm parameters
 
         /// <summary>
-        /// Size of the individual
+        /// Size of the individuals
         /// </summary>
-        private int _n;
+        private int[] _n;
+        /// <summary>
+        /// Length of all individual bitwords
+        /// </summary>
+        private int _m;
         /// <summary>
         /// Size of population
         /// </summary>
@@ -81,9 +90,9 @@ namespace GeneticAlg
         /// Return the number of bits for the individual that is required for specified precision
         /// </summary>
         /// <returns></returns>
-        private int find_indiv_size()
+        private int find_indiv_size(double a_i, double b_i)
         {
-            int numOfPoints = (int)Math.Floor((_b - _a) * Math.Pow(10, _eps));
+            int numOfPoints = (int)Math.Floor((b_i - a_i) * Math.Pow(10, _eps));
             int count = 0;
 
             while (numOfPoints > 0)
@@ -100,9 +109,29 @@ namespace GeneticAlg
         /// </summary>
         /// <param name="v_i"></param>
         /// <returns></returns>
-        private double b2d(int v_i)
+        private double b2d(string v_i, int i)
         {
-            return _a + (((_b - _a) / (Math.Pow(2, _n) - 1)) * v_i);
+            int v_i_int = Convert.ToInt32(v_i, 2);
+            return _a[i] + (((_b[i] - _a[i]) / (Math.Pow(2, _n[i]) - 1)) * v_i_int);
+        }
+
+        /// <summary>
+        /// Splits the individual bitword into separate real values
+        /// </summary>
+        /// <param name="v_i"></param>
+        /// <returns></returns>
+        private double[] indiv_to_double_array(string v_i)
+        {
+            var param = new double[_varNum];
+            int v_i_idx = 0;
+
+            for (int i = 0; i < _varNum; i++)
+            {
+                param[i] = b2d(v_i.Substring(v_i_idx, _n[i]), i);
+                v_i_idx += _n[i];
+            }
+
+            return param;
         }
 
         /// <summary>
@@ -110,25 +139,27 @@ namespace GeneticAlg
         /// </summary>
         /// <param name="v_i"></param>
         /// <returns></returns>
-        private double fitness(int v_i)
+        private double fitness(string v_i)
         {
-            return _f(b2d(v_i));
+            return _f(indiv_to_double_array(v_i));
         }
+
+       
 
         /// <summary>
         /// Determines the fitness of the current population
         /// </summary>
         /// <returns></returns>
-        private (double val, double x) fitness_pop(List<int> pop)
+        private (double val, double[] x) fitness_pop(List<string> pop)
         {
             var min = pop.Min(fitness);
-            return (min, b2d(pop.Find(ind => fitness(ind) <= min)));
+            return (min, indiv_to_double_array(pop.Find(ind => fitness(ind) <= min)));
         }
 
-        private List<int> tournament(List<int> pop)
+        private List<string> tournament(List<string> pop)
         {
-            var selectedPop = new List<int>(_N_p);
-            var selection = new List<int>(_N_t);
+            var selectedPop = new List<string>(_N_p);
+            var selection = new List<string>(_N_t);
 
             while (selectedPop.Count < _N_p)
             {
@@ -143,7 +174,7 @@ namespace GeneticAlg
                 //Console.WriteLine("Tournament: ");
                 //foreach (var sel in selection)
                 //{
-                //    Console.WriteLine($"\t{Convert.ToString(sel, 2)}");
+                //    Console.WriteLine($"\t{sel}");
                 //}
 
                 var min = selection.Min(fitness);
@@ -153,9 +184,9 @@ namespace GeneticAlg
             return selectedPop;
         }
 
-        private List<int> mutate(List<int> pop)
+        private List<string> mutate(List<string> pop)
         {
-            var mutatedPop = new List<int>(_N_p);
+            var mutatedPop = new List<string>(_N_p);
 
             //Console.WriteLine("Mutation: ");
 
@@ -163,13 +194,14 @@ namespace GeneticAlg
             {
                 if (_rand.NextDouble() <= _p_m)
                 {
-                    var i_m = _rand.Next(_n);
-                    var mask = 1 << i_m;
+                    var i_m = _rand.Next(_m);
+                    var mutatedInd = v.ToCharArray();
 
+                    mutatedInd[i_m] = (mutatedInd[i_m] == '0') ? '1' : '0';
                     // flip i-th bit
-                    mutatedPop.Add(v ^ mask);
+                    mutatedPop.Add(new string(mutatedInd));
 
-                    //Console.WriteLine($"{Convert.ToString(v, 2)} mutated in bit {i_m}");
+                    //Console.WriteLine($"{v} mutated in bit {i_m}");
                 }
                 else
                 {
@@ -180,58 +212,47 @@ namespace GeneticAlg
             return mutatedPop;
         }
 
-        private List<int> crossover(List<int> pop)
+        private List<string> crossover(List<string> pop)
         {
-            var mutatedPop = new List<int>(_N_p);
+            var crossedOverPop = new List<string>(_N_p);
 
             //Console.WriteLine("Crossover: ");
 
-            while (mutatedPop.Count < _N_p)
+            while (crossedOverPop.Count < _N_p)
             {
-                int v_i = pop[_rand.Next(_N_p)]; // e.g. 01001000
-                int v_j = pop[_rand.Next(_N_p)]; // e.g. 11100001
+                var v_i = pop[_rand.Next(_N_p)]; // e.g. 01001000
+                var v_j = pop[_rand.Next(_N_p)]; // e.g. 11100001
 
                 if (_rand.NextDouble() < _p_c)
                 {
-                    var i_c = _rand.Next(_n); // e.g. 5
+                    var i_c = _rand.Next(_m); // e.g. 5
 
-                    var v_i_first_half = v_i & (int.MaxValue << i_c); // 01001000 & 11100000 = 01000000
-                    var v_i_second_half = v_i & ((int)Math.Pow(2, i_c) - 1); // 01001000 & 00011111 = 00001000
+                    var v_i_first_half = v_i.Substring(0, v_i.Length - i_c); // 01001000 & 11100000 = 01000000
+                    var v_i_second_half = v_i.Substring(v_i.Length - i_c); // 01001000 & 00011111 = 00001000
 
-                    var v_j_first_half = v_j & (int.MaxValue << i_c); // 11100001 & 11100000 = 11100000
-                    var v_j_second_half = v_j & ((int)Math.Pow(2, i_c) - 1); // 11100001 & 00011111 = 00000001
+                    var v_j_first_half = v_j.Substring(0, v_j.Length - i_c); // 11100001 & 11100000 = 11100000
+                    var v_j_second_half = v_j.Substring(v_j.Length - i_c); // 11100001 & 00011111 = 00000001
 
-                    mutatedPop.Add(v_i_first_half + v_j_second_half); // 01000000 + 00000001 = 01000001
-                    mutatedPop.Add(v_j_first_half + v_i_second_half); // 11100000 + 00001000 = 11101000
-
-                    //Console.WriteLine($"\nv_i: {Convert.ToString(v_i, 2)}");
-                    //Console.WriteLine($"v_j: {Convert.ToString(v_j, 2)}");
-                    
-                    //Console.WriteLine($"i_c: {i_c}");
-
-                    //Console.WriteLine($"v_i_first_half: {Convert.ToString(v_i_first_half, 2)}");
-                    //Console.WriteLine($"v_i_second_half: {Convert.ToString(v_i_second_half, 2)}");
-                    //Console.WriteLine($"v_j_first_half: {Convert.ToString(v_j_first_half, 2)}");
-                    //Console.WriteLine($"v_j_second_half: {Convert.ToString(v_j_second_half, 2)}");
-
-
+                    crossedOverPop.Add(string.Concat(v_i_first_half, v_j_second_half)); // 01000000 + 00000001 = 01000001
+                    crossedOverPop.Add(string.Concat(v_j_first_half, v_i_second_half)); // 11100000 + 00001000 = 11101000
                 }
                 else // leave as is
                 {
-                    mutatedPop.Add(v_i);
-                    mutatedPop.Add(v_j);
+                    crossedOverPop.Add(v_i);
+                    crossedOverPop.Add(v_j);
                 }
             }
 
-            return mutatedPop;
+            return crossedOverPop;
         }
 
         #endregion
 
-        public GeneticAlgorithm(
-            double a,
-            double b,
-            Func<double, double> f,
+        public MultivarGeneticAlgorithm(
+            double[] a,
+            double[] b,
+            Func<double[], double> f,
+            int varNum,
             int eps,
 
             int N_p = 100,
@@ -244,9 +265,8 @@ namespace GeneticAlg
             _a = a;
             _b = b;
 
-            if (_a >= _b) { throw new ArgumentException("a must be smaller than b"); }
-
             _f = f;
+            _varNum = varNum;
 
             _eps = eps;
 
@@ -264,18 +284,37 @@ namespace GeneticAlg
             _t_max_i = t_max_i;
             _t_max = t_max;
 
-            _n = find_indiv_size();
-            if (_n > 31) { throw new ArgumentException("Precision is too high"); }
+            _n = new int[_varNum];
+            for (int i = 0; i < _varNum; i++)
+            {
+                if (_a[i] >= _b[i]) { throw new ArgumentException("a must be smaller than b"); }
+
+                _n[i] = find_indiv_size(_a[i], _b[i]);
+                if (_n[i] > 31) { throw new ArgumentException("Precision is too high"); }
+
+                _m += _n[i];
+            }
         }
 
 
         public double Solve()
         {
-            var pop = new List<int>();
+            var pop = new List<string>();
             // generate initial population
             for (int i = 0; i < _N_p; i++)
             {
-                pop.Add(_rand.Next((int)Math.Pow(2, _n)));
+                var indiv = string.Empty;
+
+                for (int j = 0; j < _varNum; j++)
+                {
+                    var indiv_int = Convert.ToString((uint)_rand.Next((int) Math.Pow(2, _n[j])), 2);
+                    //Console.WriteLine(indiv_int);
+                    indiv_int = indiv_int.PadLeft(_n[j], '0');
+
+                    indiv += indiv_int;
+                }
+
+                pop.Add(indiv);
             }
 
             int t_i = 0;
@@ -294,7 +333,7 @@ namespace GeneticAlg
                 var fitness = fitness_pop(pop);
                 _popFitnessStack.Add(fitness.val);
 
-                //Console.WriteLine($"Iteration #{t}: {fitness.val} at x = {fitness.x}");
+                Console.WriteLine($"Iteration #{t}: {fitness.val} at x = [{fitness.x.ToArrayString()}]");
 
                 if (t > 1)
                 {

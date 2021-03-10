@@ -8,12 +8,13 @@ namespace GeneticAlg
         {
             Console.WriteLine("Greets!");
 
-            var solver = new GeneticAlgorithm(
-                -1,
+            var solver = new MultivarGeneticAlgorithm(
+                new double[] {-1, 0},
+                new double[] {2, 3},
+                x => (x[0] * Math.Sin(10 * Math.PI * x[0])) + (x[1] * Math.Sin(5 * Math.PI * x[1])),
                 2,
-                x => (x * Math.Sin(10 * Math.PI * x)) + 1,
                 6,
-                100,
+                1000,
                 2);
 
             Console.WriteLine($"\nSolution: {solver.Solve()}");
@@ -21,59 +22,76 @@ namespace GeneticAlg
             Console.ReadKey();
             Console.WriteLine();
 
-            var popNums = new int[6] { 10, 50, 100, 200, 500, 1000 };
 
-            foreach (var num in popNums)
-            {
-                solver = new GeneticAlgorithm(
-                    -1,
-                    2,
-                    x => (x * Math.Sin(10 * Math.PI * x)) + 1,
-                    6,
-                    num,
-                    2);
 
-                Console.WriteLine($"Solution for population {num}: {solver.Solve()}");
-            }
 
-            Console.ReadKey();
-            Console.WriteLine();
+            //    var solver = new GeneticAlgorithm(
+            //        -1,
+            //        2,
+            //        x => (x * Math.Sin(10 * Math.PI * x)) + 1,
+            //        6,
+            //        100,
+            //        2);
 
-            var P_cs = new double[5] { 1, 0.9, 0.8, 0.5, 0.1 };
+            //    Console.WriteLine($"\nSolution: {solver.Solve()}");
 
-            foreach (var num in P_cs)
-            {
-                solver = new GeneticAlgorithm(
-                    -1,
-                    2,
-                    x => (x * Math.Sin(10 * Math.PI * x)) + 1,
-                    6,
-                    100,
-                    2,
-                    p_c: num);
+            //    Console.ReadKey();
+            //    Console.WriteLine();
 
-                Console.WriteLine($"Solution for crossover prob {num}: {solver.Solve()}");
-            }
+            //    var popNums = new int[6] { 10, 50, 100, 200, 500, 1000 };
 
-            Console.ReadKey();
-            Console.WriteLine();
+            //    foreach (var num in popNums)
+            //    {
+            //        solver = new GeneticAlgorithm(
+            //            -1,
+            //            2,
+            //            x => (x * Math.Sin(10 * Math.PI * x)) + 1,
+            //            6,
+            //            num,
+            //            2);
 
-            var N_ts = new int[5] { 2, 3, 4, 5, 6 };
+            //        Console.WriteLine($"Solution for population {num}: {solver.Solve()}");
+            //    }
 
-            foreach (var num in N_ts)
-            {
-                solver = new GeneticAlgorithm(
-                    -1,
-                    2,
-                    x => (x * Math.Sin(10 * Math.PI * x)) + 1,
-                    6,
-                    100,
-                    num);
+            //    Console.ReadKey();
+            //    Console.WriteLine();
 
-                Console.WriteLine($"Solution for N_t {num}: {solver.Solve()}");
-            }
+            //    var P_cs = new double[5] { 1, 0.9, 0.8, 0.5, 0.1 };
 
-            Console.ReadKey();
+            //    foreach (var num in P_cs)
+            //    {
+            //        solver = new GeneticAlgorithm(
+            //            -1,
+            //            2,
+            //            x => (x * Math.Sin(10 * Math.PI * x)) + 1,
+            //            6,
+            //            100,
+            //            2,
+            //            p_c: num);
+
+            //        Console.WriteLine($"Solution for crossover prob {num}: {solver.Solve()}");
+            //    }
+
+            //    Console.ReadKey();
+            //    Console.WriteLine();
+
+            //    var N_ts = new int[5] { 2, 3, 4, 5, 6 };
+
+            //    foreach (var num in N_ts)
+            //    {
+            //        solver = new GeneticAlgorithm(
+            //            -1,
+            //            2,
+            //            x => (x * Math.Sin(10 * Math.PI * x)) + 1,
+            //            6,
+            //            100,
+            //            num);
+
+            //        Console.WriteLine($"Solution for N_t {num}: {solver.Solve()}");
+            //    }
+
+            //    Console.ReadKey();
+            //}
         }
     }
 }
